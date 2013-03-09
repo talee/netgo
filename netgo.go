@@ -1,22 +1,37 @@
+/*
+Copyright 2013 Thomas Lee
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
 package main
 
 import (
 	"bitbucket.org/tlee/netgo/inspect"
+	"bitbucket.org/tlee/netgo/keychain"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"regexp"
 	"strings"
 )
 
 const (
-	ROOT    = "http://10.0.0.1/"
-	DEVICES = "DEV_device.htm"
-	LOG     = "fwLog.cgi"
-	LOGOUT  = "LGO_logout.htm"
+	HOSTNAME = "10.0.0.1"
+	ROOT     = "http://" + HOSTNAME + "/"
+	DEVICES  = "DEV_device.htm"
+	LOG      = "fwLog.cgi"
+	LOGOUT   = "LGO_logout.htm"
 )
 
 // Authenticate to local NETGEAR router and get attached devices.
@@ -25,24 +40,9 @@ func main() {
 	PAGE := getTargetURL()
 	fmt.Println()
 
-	// Get authentication tokens from keychain
-	printTitle("Preparing auth request...")
-	pwCmd := exec.Command("security", "find-internet-password", "-ws", "10.0.0.1")
-	pwOut, err := pwCmd.CombinedOutput()
-	handle(err, "Failed to get the password from the keychain for authentication.")
-
-	pw := strings.TrimRight(string(pwOut), "\n")
-	acctCmd := exec.Command("security", "find-internet-password", "-s", "10.0.0.1")
-	acctOut, err := acctCmd.CombinedOutput()
-	handle(err, "Failed to get the username from the keychain for authentication.")
-
-	// Get account username from output
-	acctRegex := regexp.MustCompile("acct\"<blob>=\"[^\"]+\"")
-	acctOut = acctRegex.Find(acctOut)
-	if acctOut == nil {
-		log.Fatal("Failed to find account username from the specified site.")
-	}
-	acct := strings.Split(string(acctOut), "\"")[2]
+	// Get credentials
+	acct, pw, err := keychain.Credentials(HOSTNAME)
+	handle(err, "Failed to get credentials for "+HOSTNAME)
 
 	// Prepare HTTP request to router
 	req, err := http.NewRequest("GET", PAGE, nil)
