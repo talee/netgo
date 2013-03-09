@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bitbucket.org/tlee/netgo/inspect"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"bitbucket.org/tlee/netgo/inspect"
+	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ const (
 	ROOT    = "http://10.0.0.1/"
 	DEVICES = "DEV_device.htm"
 	LOG     = "fwLog.cgi"
+	LOGOUT  = "LGO_logout.htm"
 )
 
 // Authenticate to local NETGEAR router and get attached devices.
@@ -23,16 +25,29 @@ func main() {
 	PAGE := getTargetURL()
 	fmt.Println()
 
-	// Get authentication tokens
+	// Get authentication tokens from keychain
 	printTitle("Preparing auth request...")
-	p, err := ioutil.ReadFile(".p")
-	handle(err, "Failed to read file for auth")
+	pwCmd := exec.Command("security", "find-internet-password", "-ws", "10.0.0.1")
+	pwOut, err := pwCmd.CombinedOutput()
+	handle(err, "Failed to get the password from the keychain for authentication.")
+
+	pw := strings.TrimRight(string(pwOut), "\n")
+	acctCmd := exec.Command("security", "find-internet-password", "-s", "10.0.0.1")
+	acctOut, err := acctCmd.CombinedOutput()
+	handle(err, "Failed to get the username from the keychain for authentication.")
+
+	// Get account username from output
+	acctRegex := regexp.MustCompile("acct\"<blob>=\"[^\"]+\"")
+	acctOut = acctRegex.Find(acctOut)
+	if acctOut == nil {
+		log.Fatal("Failed to find account username from the specified site.")
+	}
+	acct := strings.Split(string(acctOut), "\"")[2]
 
 	// Prepare HTTP request to router
 	req, err := http.NewRequest("GET", PAGE, nil)
 	handle(err, "Failed to create new request to "+PAGE)
-	req.Header.Add("Authorization", "Basic "+string(p))
-	p = nil
+	req.SetBasicAuth(acct, pw)
 
 	// Authenticate and get router data
 	printTitle("Requesting router data...")
@@ -56,7 +71,22 @@ func main() {
 
 	// Successfully authenicated and received a good response
 	_, err = io.Copy(os.Stdout, resp.Body)
+	defer resp.Body.Close()
 	handle(err, "Failed to copy response to os.Stdout")
+
+	// Logout
+	PAGE = ROOT + LOGOUT
+	req, err = http.NewRequest("GET", PAGE, nil)
+	handle(err, "Failed to create logout page request.")
+	req.SetBasicAuth(acct, pw)
+	resp, err = http.DefaultClient.Do(req)
+	handle(err, "Failed request for logout page.")
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		fmt.Println("Successfully logged out.")
+	} else {
+		handleBadHttpStatus(resp)
+	}
 }
 
 // Print failure and exit.
@@ -91,7 +121,7 @@ func printTitle(title string) {
 	fmt.Println(strings.Repeat("-", len(title)), "\n")
 }
 
-// Get URL from command-line args.
+// Return URL based on command-line args.
 func getTargetURL() string {
 	url := ROOT
 	if len(os.Args) > 1 {
