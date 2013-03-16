@@ -1,18 +1,27 @@
-/*
-Copyright 2013 Thomas Lee
+// Copyright 2013 Thomas Lee
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+// http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
- */
+// Access NETGEAR router data using OSX keychain authentication via command-line.
+//
+// Usage:
+//
+// To prints out router data on the command-line use either of the following commands:
+//
+//     netgo devices
+//     netgo log
+//
+// After allowing access to the keychain, data about the router and it's specified property will be printed to standard output.
 package main
 
 import (
